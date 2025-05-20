@@ -62,7 +62,7 @@ namespace AzureSignToolClickOnce.Services
             var filesToSign = new List<string>();
             var setupExe = files.Where(f => ".exe".Equals(Path.GetExtension(f), StringComparison.OrdinalIgnoreCase));
             filesToSign.AddRange(setupExe);
-            
+
             var manifestFile = files.SingleOrDefault(f => ".manifest".Equals(Path.GetExtension(f), StringComparison.OrdinalIgnoreCase));
             if (string.IsNullOrEmpty(manifestFile))
             {
@@ -120,18 +120,26 @@ namespace AzureSignToolClickOnce.Services
         {
             var signtool = new Process
             {
-                StartInfo =
+                StartInfo = new ProcessStartInfo
                 {
                     FileName = _magetoolPath,
                     UseShellExecute = false,
-                    CreateNoWindow = true,
+                    CreateNoWindow = false,
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
                     Arguments = args
                 }
             };
+
+            signtool.OutputDataReceived += (sender, e) => Console.WriteLine("OUT: " + e.Data);
+            signtool.ErrorDataReceived += (sender, e) => Console.WriteLine("ERR: " + e.Data);
+
             Console.WriteLine($"Signing {signtool.StartInfo.FileName} {args}");
             signtool.Start();
+
+            signtool.BeginOutputReadLine();
+            signtool.BeginErrorReadLine();
+
             signtool.WaitForExit();
 
             if (signtool.ExitCode == 0)
