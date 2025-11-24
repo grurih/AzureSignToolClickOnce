@@ -16,9 +16,16 @@ namespace AzureSignToolClickOnce
             var clientId = string.Empty;
             var clientSecret = string.Empty;
             var certName = string.Empty;
+            var signAllUnsigned = false;
 
             foreach (string arg in args)
             {
+                if (string.Equals(arg, "-a", StringComparison.OrdinalIgnoreCase))
+                {
+                    signAllUnsigned = true;
+                    continue;
+                }
+
                 if (!arg.StartsWith("-") || arg.Length < 4)
                     continue;
 
@@ -105,7 +112,7 @@ namespace AzureSignToolClickOnce
             }
 
             var service = new AzureSignToolService();
-            service.Start(description, path, timeStampUrl, timeStampUrlRfc3161, keyVaultUrl, ADTenantId, clientId, clientSecret, certName);
+            service.Start(description, path, timeStampUrl, timeStampUrlRfc3161, keyVaultUrl, ADTenantId, clientId, clientSecret, certName, signAllUnsigned);
         }
     }
 }

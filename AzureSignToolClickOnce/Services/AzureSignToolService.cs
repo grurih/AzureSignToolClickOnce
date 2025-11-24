@@ -16,7 +16,7 @@ namespace AzureSignToolClickOnce.Services
     public class AzureSignToolService
     {
         private string _magetoolPath = @"C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools\mage.exe";
-        public void Start(string description, string path, string timeStampUrl, string timeStampUrlRfc3161, string keyVaultUrl, string tenantId, string clientId, string clientSecret, string certName)
+        public void Start(string description, string path, string timeStampUrl, string timeStampUrlRfc3161, string keyVaultUrl, string tenantId, string clientId, string clientSecret, string certName, bool signAllUnsigned)
         {
             var tokenCredential = new ClientSecretCredential(tenantId, clientId, clientSecret);
             var client = new CertificateClient(vaultUri: new Uri(keyVaultUrl), credential: tokenCredential);
@@ -60,8 +60,21 @@ namespace AzureSignToolClickOnce.Services
             }
 
             var filesToSign = new List<string>();
-            var setupExe = files.Where(f => ".exe".Equals(Path.GetExtension(f), StringComparison.OrdinalIgnoreCase));
-            filesToSign.AddRange(setupExe);
+
+            if (signAllUnsigned)
+            {
+                var unsignedDlls = files
+                    .Where(f => ".dll".Equals(Path.GetExtension(f), StringComparison.OrdinalIgnoreCase) && !IsFileSigned(f));
+                var unsignedExes = files
+                    .Where(f => ".exe".Equals(Path.GetExtension(f), StringComparison.OrdinalIgnoreCase) && !IsFileSigned(f));
+                filesToSign.AddRange(unsignedDlls);
+                filesToSign.AddRange(unsignedExes);
+            }
+            else
+            {
+                var setupExe = files.Where(f => ".exe".Equals(Path.GetExtension(f), StringComparison.OrdinalIgnoreCase));
+                filesToSign.AddRange(setupExe);
+            }
 
             var manifestFile = files.SingleOrDefault(f => ".manifest".Equals(Path.GetExtension(f), StringComparison.OrdinalIgnoreCase));
             if (string.IsNullOrEmpty(manifestFile))
@@ -70,7 +83,7 @@ namespace AzureSignToolClickOnce.Services
                 return;
             }
 
-            // sign the exe files
+            // sign the exe/dll files
             SignInAzureVault(description, "", timeStampUrlRfc3161, certificate, rsa, filesToSign);
 
             // look for the manifest file and sign that
@@ -102,6 +115,21 @@ namespace AzureSignToolClickOnce.Services
             foreach (string filename in deployFiles)
             {
                 File.Move(filename, filename.Trim() + ".deploy");
+            }
+        }
+
+        private static bool IsFileSigned(string filePath)
+        {
+            try
+            {
+                using (var cert = X509Certificate.CreateFromSignedFile(filePath))
+                {
+                    return cert != null;
+                }
+            }
+            catch
+            {
+                return false;
             }
         }
 
